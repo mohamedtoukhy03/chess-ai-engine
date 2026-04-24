@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess AI — Neuro Engine</title>
+    <meta name="description" content="Play against a sentient Alpha-Beta PyTorch Engine">
+
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Animated Background Canvas (CSS driven) -->
+<div class="mesh-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<div class="app-container">
+    <header class="header glass-panel">
+        <div class="logo">
+            <span class="logo-icon">♔</span>
+            <h1 class="logo-text">Neural<span class="accent-gradient">Knight</span></h1>
+        </div>
+        <div class="status-badge" id="statusIndicator">
+            <span class="status-dot"></span>
+            <span class="status-text">Booting Systems...</span>
+        </div>
+    </header>
+
+    <main class="main-dashboard">
+        
+        <!-- Left Panel: Controls -->
+        <aside class="side-panel left-panel glass-panel">
+            <div class="panel-section">
+                <h3><span class="icon">⚙</span> Configuration</h3>
+                <div class="setting-group">
+                    <label for="playAs">Play Perspective</label>
+                    <select id="playAs" class="glass-input">
+                        <option value="white">White Operations</option>
+                        <option value="black">Black Operations</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label for="thinkTime">Compute Time Limit</label>
+                    <select id="thinkTime" class="glass-input">
+                        <option value="1000">1.0 Seconds</option>
+                        <option value="2000" selected>2.0 Seconds</option>
+                        <option value="5000">5.0 Seconds (Deep)</option>
+                        <option value="10000">10.0 Seconds (Ultra)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section controls-grid">
+                <h3><span class="icon">🕹</span> Tactical Override</h3>
+                <button class="btn btn-primary glow-effect" id="btnNewGame" onclick="newGame()">
+                    <span>Initialize Game</span>
+                </button>
+                <button class="btn btn-secondary" id="btnFlip" onclick="flipBoard()">
+                    <span>Invert Board</span>
+                </button>
+                <button class="btn btn-danger" id="btnUndo" onclick="undoMove()">
+                    <span>Revert Move</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Center: The Arena -->
+        <div class="arena-container">
+            <div class="player-hud opponent-hud glass-panel">
+                <div class="avatar ai-avatar">🤖</div>
+                <div class="player-info">
+                    <h2 class="player-name gradient-text">NeuralKnight V2.0</h2>
+                    <span class="thinking-status" id="thinkingIndicator">Calculating Trajectories...</span>
+                </div>
+            </div>
+
+            <!-- Glowing Game Board -->
+            <div class="board-wrapper">
+                <div class="board-glow"></div>
+                <div id="chessBoard" class="glass-board"></div>
+            </div>
+
+            <div class="player-hud human-hud glass-panel">
+                <div class="avatar human-avatar">👤</div>
+                <div class="player-info">
+                    <h2 class="player-name">Human Challenger</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Telemetry -->
+        <aside class="side-panel right-panel glass-panel">
+            <div class="panel-section h-100 flex-column">
+                <h3><span class="icon">📜</span> Move Telemetry</h3>
+                <div class="move-list custom-scroll" id="moveList">
+                    <p class="empty-message">Awaiting initial maneuver...</p>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3><span class="icon">📡</span> System State</h3>
+                <div class="game-status" id="gameStatus">
+                    <span class="status-badge active">Your turn</span>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+</div>
+
+<!-- jQuery (required by chessboard.js) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- chess.js for move validation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+<!-- Chessboard.js -->
+<script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+
+<script src="app.js?v=20260424-1"></script>
+
+</body>
+</html>

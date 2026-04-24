@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+cmake-build-*/
+
+# Models & data
+models/*.pth
+models/*.onnx
+data/dataset.pt
+data/pgn/*.pgn
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training outputs
+models/training_curves.png

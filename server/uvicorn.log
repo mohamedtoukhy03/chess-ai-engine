@@ -1,0 +1,16 @@
+INFO:     Started server process [118103]
+INFO:     Waiting for application startup.
+ERROR:chess-server:Engine failed UCI handshake
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49808 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52774 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60656 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34188 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52654 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48490 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59520 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45920 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56390 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32950 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39888 - "GET /api/status HTTP/1.1" 200 OK
