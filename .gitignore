@@ -1,27 +1,49 @@
-# Build artifacts
-build/
-cmake-build-*/
-
-# Models & data
-data/dataset.pt
-
+chessData.csv
+### --- Programming Languages ---
 # Python
 __pycache__/
-*.pyc
-*.egg-info/
+*.py[cod]
+*$py.class
 .venv/
 venv/
+ENV/
+build/
+dist/
 
-# IDE
+# C++ / Compiled Binaries
+*.o
+*.obj
+*.exe
+*.out
+*.app
+bin/
+# Large Engine Binaries
+chess_engine
+
+### --- AI & Data ---
+# Exclude massive datasets or model weights that should be hosted elsewhere
+*.h5
+*.pth
+*.onnx
+*.weights
+data/large_datasets/
+*.csv
+*.jsonl
+
+### --- IDEs & Editors ---
+# VS Code / Cursor
 .vscode/
-.idea/
-*.swp
-*.swo
-compile_commands.json
+*.code-workspace
+.history/
 
-# OS
+# JetBrains (PyCharm / CLion)
+.idea/
+
+### --- Operating System ---
 .DS_Store
 Thumbs.db
+*.log
+*.tmp
 
-# Training outputs
-models/training_curves.png
+### --- Version Control / Misc ---
+.env*.keras

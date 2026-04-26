@@ -1,7 +1,7 @@
 """
 Export trained PyTorch model to ONNX format for C++ inference.
 
-The exported model takes input shape (1, 12, 8, 8) and outputs (1, 1).
+The exported model takes input shape (1, 18, 8, 8) and outputs (1, 1).
 ONNX Runtime is used in the C++ engine for fast inference.
 """
 
@@ -31,7 +31,7 @@ def export_to_onnx():
     model.eval()
 
     # Dummy input
-    dummy_input = torch.randn(1, 12, 8, 8)
+    dummy_input = torch.randn(1, 18, 8, 8)
 
     # Export
     os.makedirs(os.path.dirname(ONNX_EXPORT_PATH), exist_ok=True)
@@ -62,7 +62,7 @@ def export_to_onnx():
     print("\nTesting ONNX Runtime inference...")
     session = ort.InferenceSession(ONNX_EXPORT_PATH)
 
-    test_input = np.random.randn(1, 12, 8, 8).astype(np.float32)
+    test_input = np.random.randn(1, 18, 8, 8).astype(np.float32)
     result = session.run(None, {"board": test_input})
 
     print(f"Input shape:  {test_input.shape}")

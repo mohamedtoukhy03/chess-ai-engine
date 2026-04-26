@@ -6,12 +6,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 
 ## Configuration
-BOARD_CHANNELS = 12      # 6 piece types × 2 colors
+BOARD_CHANNELS = 18      # 12 piece planes + 6 state/context planes
 BOARD_SIZE = 8           # 8×8 board
-INPUT_CHANNELS = 12      # One-hot planes per piece type/color
+INPUT_CHANNELS = 18      # Piece planes + turn/castling/en-passant planes
 
 ## CNN Architecture
-NUM_RESIDUAL_BLOCKS = 6
+NUM_RESIDUAL_BLOCKS = 12
 NUM_FILTERS = 128
 FC_HIDDEN = 256
 
@@ -30,5 +30,5 @@ ONNX_EXPORT_PATH = str(PROJECT_ROOT / "models" / "chess_eval.onnx")
 
 ## Stockfish (for generating evaluation labels)
 STOCKFISH_PATH = "/usr/bin/stockfish"  # Adjust to your system
-STOCKFISH_DEPTH = 12
-NUM_POSITIONS = 400000    # Number of positions to generate
+STOCKFISH_DEPTH = 15
+NUM_POSITIONS = 2000000   # Number of positions to generate

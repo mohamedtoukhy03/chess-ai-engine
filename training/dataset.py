@@ -5,17 +5,25 @@ Two modes:
   1. PGN parsing: Extract positions from Grandmaster PGN files
   2. Stockfish evaluation: Generate position labels using Stockfish engine
 
-The board is encoded as a (12, 8, 8) float tensor:
+The board is encoded as a (18, 8, 8) float tensor:
   Planes 0-5:   White P, N, B, R, Q, K
   Planes 6-11:  Black P, N, B, R, Q, K
+  Plane 12:     Side to move (all ones if White to move, else zeros)
+  Plane 13:     White can castle kingside
+  Plane 14:     White can castle queenside
+  Plane 15:     Black can castle kingside
+  Plane 16:     Black can castle queenside
+  Plane 17:     En-passant target square (single 1 on target, if available)
 
-Evaluations are normalized to [-1, 1] via tanh(centipawn / 400).
+Evaluations are normalized to [-1, 1] via a WDL-style expected score curve.
 """
 
 import os
 import sys
 import math
 import random
+import atexit
+import multiprocessing as mp
 import torch
 import chess
 import chess.pgn
@@ -45,12 +53,13 @@ PIECE_TO_PLANE = {
 
 def board_to_tensor(board: chess.Board) -> torch.Tensor:
     """
-    Convert a python-chess Board to a (12, 8, 8) float tensor.
+    Convert a python-chess Board to a (18, 8, 8) float tensor.
 
     White pieces → planes 0-5
     Black pieces → planes 6-11
+    Context state  → planes 12-17
     """
-    tensor = torch.zeros(12, 8, 8, dtype=torch.float32)
+    tensor = torch.zeros(18, 8, 8, dtype=torch.float32)
 
     for square in chess.SQUARES:
         piece = board.piece_at(square)
@@ -62,12 +71,38 @@ def board_to_tensor(board: chess.Board) -> torch.Tensor:
                 plane += 6
             tensor[plane, rank, file] = 1.0
 
+    # Plane 12: side to move (white=1, black=0)
+    if board.turn == chess.WHITE:
+        tensor[12, :, :] = 1.0
+
+    # Planes 13-16: castling rights
+    if board.has_kingside_castling_rights(chess.WHITE):
+        tensor[13, :, :] = 1.0
+    if board.has_queenside_castling_rights(chess.WHITE):
+        tensor[14, :, :] = 1.0
+    if board.has_kingside_castling_rights(chess.BLACK):
+        tensor[15, :, :] = 1.0
+    if board.has_queenside_castling_rights(chess.BLACK):
+        tensor[16, :, :] = 1.0
+
+    # Plane 17: en-passant target square
+    if board.ep_square is not None:
+        rank = board.ep_square // 8
+        file = board.ep_square % 8
+        tensor[17, rank, file] = 1.0
+
     return tensor
 
 
 def cp_to_eval(cp: int) -> float:
-    """Convert centipawn score to [-1, 1] via tanh normalization."""
-    return math.tanh(cp / 400.0)
+    """
+    Convert centipawn score to [-1, 1] via WDL-style expectation.
+
+    Maps cp -> expected win probability with a logistic curve, then shifts
+    to symmetric [-1, 1] to match the network's tanh output range.
+    """
+    win_prob = 1.0 / (1.0 + math.pow(10.0, -cp / 400.0))
+    return (2.0 * win_prob) - 1.0
 
 
 def mate_to_eval(mate_in: int) -> float:
@@ -152,27 +187,52 @@ def generate_stockfish_dataset(pgn_dir: str, num_positions: int,
                                 stockfish_path: str, depth: int) -> list:
     """
     Parse PGN files and evaluate positions with Stockfish for accurate labels.
+
+    Uses multi-process parallelism so each worker owns one Stockfish process.
     """
-    positions = []
-
-    try:
-        engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-    except Exception as e:
-        print(f"Could not start Stockfish at {stockfish_path}: {e}")
-        print("Falling back to PGN result labels...")
-        return extract_positions_from_pgn(pgn_dir, num_positions)
-
     pgn_files = [f for f in os.listdir(pgn_dir) if f.endswith('.pgn')]
     if not pgn_files:
         print(f"No PGN files found in {pgn_dir}")
-        return positions
+        return []
 
-    print(f"Processing {len(pgn_files)} files in round-robin with Stockfish (depth={depth})...")
-    open_files = [open(os.path.join(pgn_dir, f), encoding='utf-8', errors='replace') for f in pgn_files]
+    candidate_fens = collect_candidate_fens(pgn_dir, num_positions)
+    if not candidate_fens:
+        return []
 
+    num_workers = max(1, (os.cpu_count() or 1))
+    print(f"Evaluating {len(candidate_fens)} positions with {num_workers} Stockfish workers (depth={depth})...")
+
+    positions = []
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(
+        processes=num_workers,
+        initializer=_init_stockfish_worker,
+        initargs=(stockfish_path, depth),
+    ) as pool:
+        pbar = tqdm(total=min(num_positions, len(candidate_fens)), desc="Stockfish evals")
+        for result in pool.imap_unordered(_evaluate_fen_worker, candidate_fens, chunksize=32):
+            if result is None:
+                continue
+            fen, label = result
+            tensor = board_to_tensor(chess.Board(fen))
+            positions.append((tensor, label))
+            pbar.update(1)
+            if len(positions) >= num_positions:
+                break
+        pbar.close()
+
+    print(f"Generated {len(positions)} Stockfish-evaluated positions")
+    return positions
+
+
+def collect_candidate_fens(pgn_dir: str, target_count: int) -> list:
+    """Collect candidate FENs from PGNs before parallel Stockfish evaluation."""
+    fens = []
+    pgn_files = [f for f in os.listdir(pgn_dir) if f.endswith(".pgn")]
+    open_files = [open(os.path.join(pgn_dir, f), encoding="utf-8", errors="replace") for f in pgn_files]
+    print(f"Collecting candidate positions from {len(pgn_files)} PGN files...")
     try:
-        pbar = tqdm(total=num_positions, desc="Positions")
-        while len(positions) < num_positions and open_files:
+        while len(fens) < target_count and open_files:
             for f in list(open_files):
                 game = chess.pgn.read_game(f)
                 if game is None:
@@ -181,41 +241,58 @@ def generate_stockfish_dataset(pgn_dir: str, num_positions: int,
 
                 board = game.board()
                 moves = list(game.mainline_moves())
-
                 for i, move in enumerate(moves):
                     board.push(move)
-
-                    # Skip very early opening and use every 3rd position
-                    if i < 8 or i % 3 != 0:
+                    # Skip unstable opening plies, then sample every 2 plies.
+                    if i < 8 or i % 2 != 0:
                         continue
-
-                    # Evaluate with Stockfish
-                    info = engine.analyse(board, chess.engine.Limit(depth=depth))
-                    score = info["score"].white()
-
-                    if score.is_mate():
-                        label = mate_to_eval(score.mate())
-                    else:
-                        label = cp_to_eval(score.score())
-
-                    tensor = board_to_tensor(board)
-                    positions.append((tensor, label))
-                    pbar.update(1)
-
-                    if len(positions) >= num_positions:
+                    fens.append(board.fen())
+                    if len(fens) >= target_count:
                         break
-                        
-                if len(positions) >= num_positions:
+                if len(fens) >= target_count:
                     break
-        pbar.close()
     finally:
         for f in open_files:
             if not f.closed:
                 f.close()
-        engine.quit()
 
-    print(f"Generated {len(positions)} Stockfish-evaluated positions")
-    return positions
+    print(f"Collected {len(fens)} candidate positions")
+    return fens
+
+
+_WORKER_ENGINE = None
+_WORKER_DEPTH = None
+
+
+def _init_stockfish_worker(stockfish_path: str, depth: int):
+    """Initialize one persistent Stockfish process per worker."""
+    global _WORKER_ENGINE, _WORKER_DEPTH
+    _WORKER_DEPTH = depth
+    _WORKER_ENGINE = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+
+    def _cleanup():
+        try:
+            if _WORKER_ENGINE is not None:
+                _WORKER_ENGINE.quit()
+        except Exception:
+            pass
+
+    atexit.register(_cleanup)
+
+
+def _evaluate_fen_worker(fen: str):
+    """Evaluate one FEN in a worker process; returns (fen, label) or None."""
+    try:
+        board = chess.Board(fen)
+        info = _WORKER_ENGINE.analyse(board, chess.engine.Limit(depth=_WORKER_DEPTH))
+        score = info["score"].white()
+        if score.is_mate():
+            label = mate_to_eval(score.mate())
+        else:
+            label = cp_to_eval(score.score())
+        return fen, label
+    except Exception:
+        return None
 
 
 # ============================================================

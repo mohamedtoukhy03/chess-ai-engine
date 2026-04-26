@@ -1,8 +1,9 @@
 """
 Chess Evaluation CNN — Residual Network Architecture
 
-Takes a (12, 8, 8) one-hot encoded board as input:
+Takes a (18, 8, 8) encoded board as input:
   - 12 planes: one per piece type per color (P,N,B,R,Q,K × white,black)
+  - 6 planes: side-to-move, castling rights, en-passant square
   - Each plane is 8×8 (the board)
 
 Outputs a single scalar evaluation in [-1, 1]:
@@ -116,7 +117,7 @@ class ChessEvalNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: (batch, 12, 8, 8) one-hot encoded board
+            x: (batch, 18, 8, 8) encoded board state
 
         Returns:
             (batch, 1) evaluation score in [-1, 1]
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     print(model)
 
     # Test forward pass
-    dummy = torch.randn(1, 12, 8, 8)
+    dummy = torch.randn(1, 18, 8, 8)
     out = model(dummy)
     print(f"\nInput shape:  {dummy.shape}")
     print(f"Output shape: {out.shape}")
