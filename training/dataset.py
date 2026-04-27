@@ -29,7 +29,8 @@ for _char, _idx in zip("pnbrqk", range(6, 12)):
 
 def evaluations_to_centipawns(eval_series: pd.Series) -> np.ndarray:
     series = eval_series.astype(str).str.strip()
-    out = pd.to_numeric(series, errors="coerce").to_numpy(dtype=np.float64)
+    # pandas may return a read-only NumPy view; copy so mate remapping can assign.
+    out = pd.to_numeric(series, errors="coerce").to_numpy(dtype=np.float64).copy()
     mate_m = series.str.extract(r"^#\s*([+-]?\d+)\s*$", expand=False)
     has_mate = mate_m.notna()
     if has_mate.any():
