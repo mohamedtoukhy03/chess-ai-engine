@@ -20,27 +20,13 @@
 
 <!-- Animated Background Canvas (CSS driven) -->
 <div class="mesh-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
 </div>
 
 <div class="app-container">
-    <header class="header glass-panel">
-        <div class="logo">
-            <span class="logo-icon">♔</span>
-            <h1 class="logo-text">Neural<span class="accent-gradient">Knight</span></h1>
-        </div>
-        <div class="status-badge" id="statusIndicator">
-            <span class="status-dot"></span>
-            <span class="status-text">Booting Systems...</span>
-        </div>
-    </header>
-
     <main class="main-dashboard">
         
         <!-- Left Panel: Controls -->
-        <aside class="side-panel left-panel glass-panel">
+        <aside class="side-panel left-panel glass-panel" style="flex: 0.5;">
             <div class="panel-section">
                 <h3><span class="icon">⚙</span> Configuration</h3>
                 <div class="setting-group">
@@ -80,7 +66,7 @@
             <div class="player-hud opponent-hud glass-panel">
                 <div class="avatar ai-avatar">🤖</div>
                 <div class="player-info">
-                    <h2 class="player-name gradient-text">NeuralKnight V2.0</h2>
+                    <h2 class="player-name gradient-text">NeuralKnight</h2>
                     <span class="thinking-status" id="thinkingIndicator">Calculating Trajectories...</span>
                 </div>
             </div>
@@ -100,7 +86,7 @@
         </div>
 
         <!-- Right Panel: Telemetry -->
-        <aside class="side-panel right-panel glass-panel">
+        <aside class="side-panel right-panel glass-panel" style="flex: 0.5;">
             <div class="panel-section h-100 flex-column">
                 <h3><span class="icon">📜</span> Move Telemetry</h3>
                 <div class="move-list custom-scroll" id="moveList">
@@ -128,7 +114,7 @@
 <!-- Chessboard.js -->
 <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 
-<script src="app.js?v=20260424-1"></script>
+<script src="app.js?v=20260427-2"></script>
 
 </body>
 </html>

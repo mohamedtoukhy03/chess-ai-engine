@@ -9,6 +9,7 @@ constexpr float DRAW_SCORE = 0.0f;
 AlphaBetaSearch::AlphaBetaSearch(NNEvaluator& evaluator)
     : evaluator_(evaluator) {}
 
+
 void AlphaBetaSearch::check_time() {
     if (nodes_ % 1024 == 0) {
         if (std::chrono::steady_clock::now() > deadline_) {
@@ -105,6 +106,11 @@ float AlphaBetaSearch::alpha_beta(Position& pos, int depth, float alpha, float b
 }
 
 Move AlphaBetaSearch::search(Position& pos, int time_ms) {
+    if (!evaluator_.is_loaded()) {
+        std::cout << "info string Engine requires the AI model to be loaded. Move generation aborted." << std::endl;
+        return MOVE_NONE;
+    }
+
     auto start = std::chrono::steady_clock::now();
     deadline_ = start + std::chrono::milliseconds(time_ms);
     time_over_ = false;
@@ -186,6 +192,11 @@ Move AlphaBetaSearch::search(Position& pos, int time_ms) {
 }
 
 Move AlphaBetaSearch::get_best_move(Position& pos, int depth) {
+    if (!evaluator_.is_loaded()) {
+        std::cout << "info string Engine requires the AI model to be loaded. Move generation aborted." << std::endl;
+        return MOVE_NONE;
+    }
+
     nodes_ = 0;
     seldepth_ = 0;
     time_over_ = false;

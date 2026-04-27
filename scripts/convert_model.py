@@ -36,7 +36,7 @@ def main() -> None:
         raise FileNotFoundError(f"Keras model not found: {keras_path}")
 
     print(f"Loading Keras model from: {keras_path}")
-    model = tf.keras.models.load_model(keras_path, compile=False)
+    model = tf.keras.models.load_model(keras_path, compile=False, safe_mode=False)
 
     # Explicit signatures to preserve dual-input model API:
     # board: (None, 8, 8, 12), meta: (None, 8)

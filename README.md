@@ -18,12 +18,12 @@ chess-engine/
 │   ├── uci.h/cpp           # UCI protocol
 │   ├── perft.h/cpp         # Move generation validation
 │   └── main.cpp            # Entry point
-├── training/               # Python/PyTorch model training
+├── training/               # Python/TensorFlow model training
 │   ├── config.py           # Hyperparameters & paths
 │   ├── model.py            # SE-ResNet CNN architecture
-│   ├── dataset.py          # PGN/Stockfish → training data
+│   ├── dataset.py          # CSV/FEN preprocessing → training tensors
 │   ├── train.py            # Training loop
-│   └── export_onnx.py      # PyTorch → ONNX export
+│   └── export_onnx.py      # Keras → ONNX export
 ├── server/                 # Python/FastAPI backend
 │   └── app.py              # REST API + UCI engine manager
 ├── frontend/               # Web UI
@@ -31,7 +31,7 @@ chess-engine/
 │   ├── style.css
 │   └── app.js
 ├── models/                 # Trained model files
-└── data/pgn/               # PGN training data
+└── data/                   # Dataset files (e.g. chessData.csv, dataset_tf.npz)
 ```
 
 ## Quick Start
@@ -52,8 +52,7 @@ make -j$(nproc)
 cd training
 pip install -r requirements.txt
 
-# Generate test data (or place .pgn files in data/pgn/)
-python dataset.py --synthetic
+# Place chessData.csv at data/chessData.csv
 python train.py
 python export_onnx.py
 ```
@@ -73,7 +72,7 @@ Open `http://localhost:8000` in your browser.
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | Engine    | C++20     | Bitboard move generation + MCTS search |
-| Model     | PyTorch   | SE-ResNet CNN for position evaluation |
+| Model     | TensorFlow/Keras | SE-ResNet CNN for position evaluation |
 | Inference | ONNX Runtime | Fast NN inference inside C++ engine |
 | Backend   | FastAPI   | UCI engine wrapper + REST API |
 | Frontend  | HTML/JS   | chessboard.js interactive UI |

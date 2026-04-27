@@ -7,22 +7,22 @@
 #include <array>
 #include <vector>
 
+using namespace std;
+
 // ============================================================
-// Conditional ONNX Runtime support
-// If ONNX Runtime is available, use it; otherwise fall back to material eval
+// ONNX Runtime Integration
 // ============================================================
 
-#ifdef USE_ONNXRUNTIME
 #include <onnxruntime_cxx_api.h>
 
 struct NNEvaluator::OrtState {
     Ort::Env env;
-    std::unique_ptr<Ort::Session> session;
+    unique_ptr<Ort::Session> session;
     Ort::MemoryInfo memory_info;
-    std::vector<std::string> input_names_str;
-    std::vector<const char*> input_names;
-    std::vector<std::string> output_names_str;
-    std::vector<const char*> output_names;
+    vector<string> input_names_str;
+    vector<const char*> input_names;
+    vector<string> output_names_str;
+    vector<const char*> output_names;
 
     OrtState()
         : env(ORT_LOGGING_LEVEL_WARNING, "ChessEngine")
@@ -30,16 +30,16 @@ struct NNEvaluator::OrtState {
     {}
 };
 
-NNEvaluator::NNEvaluator() : ort_state_(std::make_unique<OrtState>()) {}
+NNEvaluator::NNEvaluator() : ort_state_(make_unique<OrtState>()) {}
 NNEvaluator::~NNEvaluator() = default;
 
-bool NNEvaluator::load_model(const std::string& model_path) {
+bool NNEvaluator::load_model(const string& model_path) {
     try {
         Ort::SessionOptions opts;
         opts.SetIntraOpNumThreads(1);
         opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
-        ort_state_->session = std::make_unique<Ort::Session>(
+        ort_state_->session = make_unique<Ort::Session>(
             ort_state_->env, model_path.c_str(), opts
         );
 
@@ -70,10 +70,10 @@ bool NNEvaluator::load_model(const std::string& model_path) {
         }
 
         loaded_ = true;
-        std::cout << "info string NN model loaded: " << model_path << std::endl;
+        cout << "info string NN model loaded: " << model_path << endl;
         return true;
     } catch (const Ort::Exception& e) {
-        std::cerr << "info string Failed to load ONNX model: " << e.what() << std::endl;
+        cerr << "info string Failed to load ONNX model: " << e.what() << endl;
         loaded_ = false;
         return false;
     }
@@ -81,17 +81,18 @@ bool NNEvaluator::load_model(const std::string& model_path) {
 
 float NNEvaluator::evaluate(const Position& pos) {
     if (!loaded_) {
-        return material_eval(pos);
+        cerr << "Engine attempted to evaluate without a loaded AI model" << endl;
+        return 0.0f; // Safety fallback since search should abort first
     }
 
     // Encode inputs
-    std::array<float, 8 * 8 * 12> board_data{};
-    std::array<float, 8> meta_data{};
+    array<float, 8 * 8 * 12> board_data{};
+    array<float, 8> meta_data{};
     encode_board(pos, board_data.data());
     encode_metadata(pos, meta_data.data());
 
-    std::array<int64_t, 4> board_shape = {1, 8, 8, 12}; // NHWC
-    std::array<int64_t, 2> meta_shape = {1, 8};
+    array<int64_t, 4> board_shape = {1, 8, 8, 12}; // NHWC
+    array<int64_t, 2> meta_shape = {1, 8};
     Ort::Value board_tensor = Ort::Value::CreateTensor<float>(
         ort_state_->memory_info, board_data.data(), board_data.size(),
         board_shape.data(), board_shape.size()
@@ -101,12 +102,12 @@ float NNEvaluator::evaluate(const Position& pos) {
         meta_shape.data(), meta_shape.size()
     );
 
-    std::vector<Ort::Value> inputs;
-    inputs.emplace_back(std::move(board_tensor));
+    vector<Ort::Value> inputs;
+    inputs.emplace_back(move(board_tensor));
 
     // If the exported model has a metadata input, pass it too.
     if (ort_state_->input_names.size() >= 2) {
-        inputs.emplace_back(std::move(meta_tensor));
+        inputs.emplace_back(move(meta_tensor));
     }
 
     auto output_tensors = ort_state_->session->Run(
@@ -115,29 +116,12 @@ float NNEvaluator::evaluate(const Position& pos) {
         ort_state_->output_names.data(), ort_state_->output_names.size()
     );
 
-    return output_tensors[0].GetTensorData<float>()[0];
+    float nn_score = output_tensors[0].GetTensorData<float>()[0];
+    float mat_score = material_eval(pos);
+    
+    // Add raw material evaluation as a bias to the Neural Network
+    return nn_score + (mat_score * 0.5f); // Combining AI and piece importance
 }
-
-#else
-// No ONNX Runtime — pure material evaluation fallback
-
-struct NNEvaluator::OrtState {};
-
-NNEvaluator::NNEvaluator() : ort_state_(std::make_unique<OrtState>()) {}
-NNEvaluator::~NNEvaluator() = default;
-
-bool NNEvaluator::load_model(const std::string& model_path) {
-    (void)model_path;
-    std::cout << "info string ONNX Runtime not available, using material evaluation" << std::endl;
-    loaded_ = false;
-    return false;
-}
-
-float NNEvaluator::evaluate(const Position& pos) {
-    return material_eval(pos);
-}
-
-#endif // USE_ONNXRUNTIME
 
 // ============================================================
 // Board encoding (shared between ONNX and fallback paths)
@@ -146,7 +130,7 @@ float NNEvaluator::evaluate(const Position& pos) {
 void NNEvaluator::encode_board(const Position& pos, float* output) const {
     // Output layout: flattened (rank, file, channel) for shape (8, 8, 12), NHWC.
     // Rank 0 corresponds to board rank 8 to match the Python FEN parser.
-    std::fill(output, output + (8 * 8 * 12), 0.0f);
+    fill(output, output + (8 * 8 * 12), 0.0f);
 
     const bool flip_perspective = (pos.side_to_move() == BLACK);
 
@@ -235,7 +219,7 @@ float NNEvaluator::material_eval(const Position& pos) {
     }
 
     // Normalize to [-1, 1] range using tanh
-    float normalized = std::tanh(score / 400.0f);
+    float normalized = tanh(score / 400.0f);
 
     // Flip if black to move (return from current player's perspective)
     if (pos.side_to_move() == BLACK)

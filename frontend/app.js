@@ -24,6 +24,8 @@ function initBoard() {
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: onSnapEnd,
+        onMouseoutSquare: onMouseoutSquare,
+        onMouseoverSquare: onMouseoverSquare,
         pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
         appearSpeed: 'fast',
         moveSpeed: 200,
@@ -35,19 +37,78 @@ function initBoard() {
 }
 
 // ============================================================
+// Highlighting & Move Indicators
+// ============================================================
+
+function removeGreySquares() {
+    $('#chessBoard .square-55d63').removeClass('square-move-dest');
+}
+
+function greySquare(square) {
+    $('#chessBoard .square-' + square).addClass('square-move-dest');
+}
+
+function onMouseoverSquare(square, piece) {
+    if (game.game_over() || !gameInProgress) return;
+
+    // Only allow highlighting the player's own pieces
+    if (playerColor === 'white' && piece && piece.search(/^b/) !== -1) return;
+    if (playerColor === 'black' && piece && piece.search(/^w/) !== -1) return;
+
+    // Only allow moves when it's the player's turn
+    if (playerColor === 'white' && game.turn() !== 'w') return;
+    if (playerColor === 'black' && game.turn() !== 'b') return;
+
+    var moves = game.moves({
+        square: square,
+        verbose: true
+    });
+
+    if (moves.length === 0) return;
+
+    for (var i = 0; i < moves.length; i++) {
+        greySquare(moves[i].to);
+    }
+}
+
+function onMouseoutSquare(square, piece) {
+    removeGreySquares();
+}
+
+function updateCheckHighlight() {
+    $('#chessBoard .square-55d63').removeClass('square-in-check');
+
+    if (game.in_check() || game.in_checkmate()) {
+        const turn = game.turn();
+        
+        // Find king square manually since chess.js doesn't expose it directly
+        const boardState = game.board();
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (piece && piece.type === 'k' && piece.color === turn) {
+                    const square = files[c] + (8 - r);
+                    $('#chessBoard .square-' + square).addClass('square-in-check');
+                    return;
+                }
+            }
+        }
+    }
+}
+
+// ============================================================
 // Drag & drop handlers
 // ============================================================
 
 function onDragStart(source, piece, position, orientation) {
-    // Don't allow moves if game is over
     if (game.game_over()) return false;
     if (!gameInProgress) return false;
 
-    // Only allow the player to move their own pieces
     if (playerColor === 'white' && piece.search(/^b/) !== -1) return false;
     if (playerColor === 'black' && piece.search(/^w/) !== -1) return false;
 
-    // Only allow moves when it's the player's turn
     if (playerColor === 'white' && game.turn() !== 'w') return false;
     if (playerColor === 'black' && game.turn() !== 'b') return false;
 
@@ -55,26 +116,25 @@ function onDragStart(source, piece, position, orientation) {
 }
 
 function onDrop(source, target) {
-    // Try the move
+    removeGreySquares();
+    
     let move = game.move({
         from: source,
         to: target,
-        promotion: 'q'  // Always promote to queen for simplicity
+        promotion: 'q'
     });
 
     if (move === null) return 'snapback';
 
-    // Record move
     addMoveToHistory(move);
     updateGameStatus();
+    updateCheckHighlight();
 
-    // Check if game is over
     if (game.game_over()) {
         handleGameOver();
         return;
     }
 
-    // Request AI move
     setTimeout(requestAIMove, 250);
 }
 
@@ -118,6 +178,12 @@ async function requestAIMove() {
         const data = await response.json();
 
         if (data.success && data.bestMove) {
+            if (data.bestMove === '0000') {
+                console.warn('Engine reported no move (0000). Model may be missing.');
+                updateStatus('AI is offline: model does not exist', 'ended');
+                return;
+            }
+
             // Parse UCI move
             const from = data.bestMove.substring(0, 2);
             const to = data.bestMove.substring(2, 4);
@@ -133,6 +199,7 @@ async function requestAIMove() {
                 board.position(game.fen());
                 addMoveToHistory(move);
                 updateGameStatus();
+                updateCheckHighlight();
 
                 if (game.game_over()) {
                     handleGameOver();
@@ -142,7 +209,7 @@ async function requestAIMove() {
                 updateStatus('Your turn', 'active');
             } else {
                 console.error('Engine returned illegal move for current position:', data.bestMove);
-                updateStatus('Engine produced invalid move', 'ended');
+                updateStatus('AI is offline: model does not exist', 'ended');
             }
         } else {
             console.error('Engine error:', data.error);
@@ -167,6 +234,7 @@ function makeRandomAIMove() {
     board.position(game.fen());
     addMoveToHistory(move);
     updateGameStatus();
+    updateCheckHighlight();
     updateStatus('Your turn (offline mode)', 'active');
 }
 
@@ -214,6 +282,7 @@ function newGame() {
     moveHistory = [];
     gameInProgress = true;
     renderMoveHistory();
+    updateCheckHighlight();
     updateStatus('Your turn', 'active');
 
     playerColor = document.getElementById('playAs').value;
@@ -238,7 +307,6 @@ function flipBoard() {
 function undoMove() {
     if (moveHistory.length < 2) return;
 
-    // Undo both the AI and player move
     game.undo();
     game.undo();
     moveHistory.pop();
@@ -246,6 +314,7 @@ function undoMove() {
 
     board.position(game.fen());
     renderMoveHistory();
+    updateCheckHighlight();
     updateStatus('Your turn', 'active');
 }
 

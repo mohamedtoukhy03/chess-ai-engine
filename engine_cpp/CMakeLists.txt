@@ -26,7 +26,7 @@ if(ONNXRUNTIME_INCLUDE_DIR AND ONNXRUNTIME_LIB)
     target_include_directories(chess_core PUBLIC ${ONNXRUNTIME_INCLUDE_DIR})
     target_link_libraries(chess_core PUBLIC ${ONNXRUNTIME_LIB})
 else()
-    message(STATUS "ONNX Runtime not found — using material evaluation fallback")
+    message(FATAL_ERROR "ONNX Runtime is strictly required for this project but was not found.")
 endif()
 
 # Main executable (UCI engine + perft)
